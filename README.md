@@ -1,4 +1,4 @@
-# sub-circle-search
+# circle-discovery
 
 Efficiently discover all points of interest within a geographic circle, bypassing the 20-result limit of the Google Places Nearby Search API.
 
@@ -8,7 +8,7 @@ Google's Nearby Search API returns at most 20 results per query. For any area wi
 
 ## How it works
 
-`sub-circle-search` adapts the [Barycentric Fixed-Mass Method](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.88.022922) (Kamer, Ouillon & Sornette, 2013), a technique from multifractal analysis, into an adaptive spatial search. It works by:
+`circle-discovery` adapts the [Barycentric Fixed-Mass Method](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.88.022922) (Kamer, Ouillon & Sornette, 2013), a technique from multifractal analysis, into an adaptive spatial search. It works by:
 
 1. Querying a circle and finding the barycenter of the results
 2. Stabilizing the barycenter iteratively to locate the true density centre
@@ -21,7 +21,7 @@ This means the algorithm self-calibrates: dense urban areas get small, tightly-p
 ## Installation
 
 ```bash
-npm install sub-circle-search
+npm install @ariel-mutebi/circle-discovery
 ```
 
 ## Usage
@@ -29,66 +29,6 @@ npm install sub-circle-search
 The package is agnostic about how you call the Google Places API. You provide a `fetchPlaces` function that takes a circle and returns a promise of places — the algorithm handles the rest.
 
 ### Basic example
-
-```typescript
-import { subCircleSearch } from 'sub-circle-search';
-
-const places = await subCircleSearch({
-  initialCenter: { lat: 51.5074, lng: -0.1278 }, // Central London
-  initialRadius: 2000, // metres
-  fetchPlaces: async ({ center, radius }) => {
-    const response = await fetch(
-      `https://maps.googleapis.com/maps/api/place/nearbysearch/json` +
-      `?location=${center.lat},${center.lng}` +
-      `&radius=${radius}` +
-      `&key=${process.env.GOOGLE_PLACES_API_KEY}`
-    );
-    const data = await response.json();
-    return data.results.map(r => ({
-      location: {
-        lat: r.geometry.location.lat,
-        lng: r.geometry.location.lng,
-      },
-      // pass through any other fields you need
-      ...r,
-    }));
-  },
-});
-
-console.log(`Found ${places.length} places`);
-```
-
-### With the Google Maps JavaScript SDK
-
-```typescript
-import { subCircleSearch } from 'sub-circle-search';
-
-const { Place } = await google.maps.importLibrary('places');
-
-const places = await subCircleSearch({
-  initialCenter: { lat: 48.8566, lng: 2.3522 }, // Paris
-  initialRadius: 1500,
-  fetchPlaces: async ({ center, radius }) => {
-    const { places } = await Place.searchNearby({
-      locationRestriction: {
-        center,
-        radius,
-      },
-      maxResultCount: 20,
-      fields: ['location', 'displayName', 'types'],
-    });
-    return places.map(p => ({
-      location: p.location
-        ? { lat: p.location.lat(), lng: p.location.lng() }
-        : undefined,
-      name: p.displayName,
-      types: p.types,
-    }));
-  },
-});
-```
-
-### Filtering by type
 
 ```typescript
 const restaurants = await subCircleSearch({
@@ -151,7 +91,3 @@ This algorithm is inspired by the Barycentric Fixed-Mass Method introduced in:
 > Y. Kamer, G. Ouillon, and D. Sornette, *"Barycentric fixed-mass method for multifractal analysis"*, Physical Review E 88, 022922 (2013).
 
 The key concepts adapted from that paper are barycentric pivot selection (centering queries on the true density centre of results) and nonoverlapping coverage (preventing redundant sampling of already-covered areas).
-
-## License
-
-MIT

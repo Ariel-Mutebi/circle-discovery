@@ -5,7 +5,12 @@
     "moduleResolution": "NodeNext",
     "declaration": true,
     "outDir": "dist",
-    "strict": true
+    "strict": true,
+    "lib": [
+      "ESNext",
+      "DOM",
+      "ESNext.Disposable"
+    ]
   },
   "include": [
     "src"
