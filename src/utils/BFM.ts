@@ -33,7 +33,7 @@ export function calculateBarycenter(points: LatLng[]): LatLng {
 }
 
 export const calculateLocalDensityScale = (barycenter: LatLng, coordinates: LatLng[]) =>
-  coordinates.map(c => distanceBetween(barycenter, c)).sort((a, b) => a - b)[-1];
+  coordinates.map(c => distanceBetween(barycenter, c)).sort((a, b) => a - b).at(-1) ?? 0;
 
 const NOC_FACTOR = 0.86;
 

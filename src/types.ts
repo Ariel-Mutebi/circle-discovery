@@ -9,5 +9,6 @@ export interface Circle {
 };
 
 export interface Place {
+  id: string;
   location?: LatLng;
 }

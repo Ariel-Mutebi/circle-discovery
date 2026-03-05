@@ -8,15 +8,6 @@ export const coordinatesOfPlaces = (places: Place[]) =>
     return acc;
   }, []);
 
-export const createAppendArrayToSetFunction = <T>(
-  set: Set<T>,
-  filter: (el: T) => boolean = () => true,
-) => (array: T[]) => {
-  for (const element of array) {
-    if (filter(element)) set.add(element);
-  }
-};
-
 // inspired by SQL identity columns
 export function createIdentity() {
   let current = 1;

@@ -1,6 +1,6 @@
 import { respectsNOC, calculateBarycenter, calculateLocalDensityScale } from "./utils/BFM.js";
 import { distanceBetween, extendLine, reflectAcross, move } from "./utils/cartesian.js";
-import { createIdentity, createAppendArrayToSetFunction, limit, coordinatesOfPlaces } from "./utils/filters.js";
+import { createIdentity, limit, coordinatesOfPlaces } from "./utils/filters.js";
 import type { Circle, Place, LatLng } from "./types.js";
 
 interface SubCircleSearchParams {
@@ -31,15 +31,18 @@ export async function subCircleSearch({
 
   const getSourceCircle = (sourceId: number) => queriedCircles.find(c => c.id === sourceId);
 
-  const globalPlaceSet = new Set<Place>();
+  const globalPlaceMap = new Map<string, Place>();
 
   const isWithinInitialCircle = (point: LatLng) =>
     distanceBetween(initialCenter, point) < initialRadius;
 
-  const addToGlobal = createAppendArrayToSetFunction(
-    globalPlaceSet,
-    ({ location }) => Boolean(location && isWithinInitialCircle(location)),
-  );
+  const addToGlobal = (places: Place[]) => {
+    for (const place of places) {
+      if (place.id && place.location && isWithinInitialCircle(place.location)) {
+        globalPlaceMap.set(place.id, place);
+      }
+    }
+  };
 
   while (uncoveredCircles.length > 0) {
     // prioritize large sparse probes to improve performance
@@ -106,11 +109,12 @@ export async function subCircleSearch({
     }
 
     // Stabilize local Barycenter
-    const localPlaceSet = new Set(localPlaces);
-    const addToLocal = createAppendArrayToSetFunction(localPlaceSet);
+    const localPlaceMap = new Map<string, Place>(
+      localPlaces.filter(p => p.id).map(p => [p.id, p]),
+    );
 
     let stabilizedBarycenter =
-      calculateBarycenter(coordinatesOfPlaces([...localPlaceSet]));
+      calculateBarycenter(coordinatesOfPlaces([...localPlaceMap.values()]));
 
     let placesFromLastStabilizationQuery: Place[] = [];
     let idOfLastStabilizationCircle = -1;
@@ -126,10 +130,13 @@ export async function subCircleSearch({
       queriedCircles.push({ ...stabilizationCircle, id: idOfLastStabilizationCircle });
 
       addToGlobal(placesFromLastStabilizationQuery);
-      addToLocal(placesFromLastStabilizationQuery);
+
+      for (const place of placesFromLastStabilizationQuery) {
+        if (place.id) localPlaceMap.set(place.id, place);
+      }
 
       const newBarycenter = calculateBarycenter(
-        coordinatesOfPlaces([...localPlaceSet]));
+        coordinatesOfPlaces([...localPlaceMap.values()]));
 
       const improvement =
         distanceBetween(stabilizedBarycenter, newBarycenter);
@@ -164,7 +171,7 @@ export async function subCircleSearch({
      */
     const localDensityScale = calculateLocalDensityScale(
       stabilizedBarycenter,
-      coordinatesOfPlaces([...localPlaceSet]),
+      coordinatesOfPlaces([...localPlaceMap.values()]),
     );
 
     uncoveredCircles.push(
@@ -182,5 +189,5 @@ export async function subCircleSearch({
     );
   }
 
-  return [...globalPlaceSet];
+  return [...globalPlaceMap.values()];
 }
