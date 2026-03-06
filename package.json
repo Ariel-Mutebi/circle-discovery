@@ -1,6 +1,6 @@
 {
   "name": "@ariel-mutebi/circle-discovery",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Efficient POI discovery within a radius using barycentric fixed-mass search.",
   "keywords": [
     "Barycentric",
