@@ -86,6 +86,7 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
 
     const results = await fetchPlaces(stabilizedCircle as Circle);
     addToGlobalPlacesMap(results);
+    addPlacesToMap(results, localPlacesMap);
 
     if (results.length < 20) break;
     barycenter = getBarycenter();
