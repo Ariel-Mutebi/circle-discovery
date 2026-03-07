@@ -112,10 +112,3 @@ export function move(start: LatLng, distance: number, bearing: number) {
 export function extendLine(A: LatLng, B: LatLng, dist: number) {
   return move(B, dist, calculateBearing(A, B));
 }
-
-export function reflectAcross(
-  A: LatLng,
-  B: LatLng,
-): LatLng {
-  return extendLine(A, B, distanceBetween(A, B));
-}
