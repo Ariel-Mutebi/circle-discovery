@@ -5,6 +5,7 @@ import { addPlacesToMap, coordinatesOfPlaces } from "./filters.js";
 const MAX_ITERATIONS = 10;
 const NOC_FACTOR = 0.86;
 const EXPANSION_FACTOR = 1.2;
+const CONTRACTION_FACTOR = 0.8;
 
 export function calculateBarycenter(points: LatLng[]): LatLng {
   if (points.length === 0) {
@@ -82,7 +83,7 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     stabilizedCircle.center = barycenter;
-    stabilizedCircle.radius = getLocalDensityScale();
+    stabilizedCircle.radius = getLocalDensityScale() * CONTRACTION_FACTOR;
 
     const results = await fetchPlaces(stabilizedCircle as Circle);
     addToGlobalPlacesMap(results);
