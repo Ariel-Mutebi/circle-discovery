@@ -5,7 +5,7 @@ import { addPlacesToMap, coordinatesOfPlaces } from "./filters.js";
 const MAX_ITERATIONS = 10;
 const NOC_FACTOR = 0.86;
 const EXPANSION_FACTOR = 1.2;
-const CONTRACTION_FACTOR = 0.8;
+const CONTRACTION_FACTOR = 0.9;
 
 export function calculateBarycenter(points: LatLng[]): LatLng {
   if (points.length === 0) {
@@ -79,15 +79,13 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
 
   let radius = getLocalDensityScale();
 
-  const stabilizedCircle: Partial<CircleWithID> = {
-    id: getCircleId()
-  };
+  const densityDrill: Partial<Circle> = {};
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    stabilizedCircle.center = barycenter;
-    stabilizedCircle.radius = radius;
+    densityDrill.center = barycenter;
+    densityDrill.radius = radius;
 
-    const results = await fetchPlaces(stabilizedCircle as Circle);
+    const results = await fetchPlaces(densityDrill as Circle);
     addToGlobalPlacesMap(results);
     addPlacesToMap(results, localPlacesMap);
 
@@ -96,7 +94,11 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
     radius *= CONTRACTION_FACTOR;
   }
 
-  return stabilizedCircle as CircleWithID;
+  return {
+    center: getBarycenter(),
+    radius: getLocalDensityScale(),
+    id: getCircleId(),
+  };
 }
 
 // Generate 6 sub-circles hexagonally around a barycenter
