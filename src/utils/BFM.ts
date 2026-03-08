@@ -77,13 +77,15 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
   const getLocalDensityScale = () =>
     calculateLocalDensityScale(barycenter, coordinatesOfPlaces([...localPlacesMap.values()]));
 
+  let radius = getLocalDensityScale();
+
   const stabilizedCircle: Partial<CircleWithID> = {
     id: getCircleId()
   };
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
     stabilizedCircle.center = barycenter;
-    stabilizedCircle.radius = getLocalDensityScale() * CONTRACTION_FACTOR;
+    stabilizedCircle.radius = radius;
 
     const results = await fetchPlaces(stabilizedCircle as Circle);
     addToGlobalPlacesMap(results);
@@ -91,6 +93,7 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
 
     if (results.length < 20) break;
     barycenter = getBarycenter();
+    radius *= CONTRACTION_FACTOR;
   }
 
   return stabilizedCircle as CircleWithID;
