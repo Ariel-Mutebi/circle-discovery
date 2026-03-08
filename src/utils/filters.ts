@@ -22,8 +22,8 @@ export function clamp(min: number, clamped: number, max: number) {
   return Math.min(Math.max(clamped, min), max);
 }
 
-export function makeIsWithinInitialCircle(initialCenter: LatLng, initialRadius: number) {
-  return (point: LatLng) => distanceBetween(initialCenter, point) < initialRadius;
+export function countNewPlaces(placeMap: PlaceMap, potentiallyNewPlaces: Place[]) {
+  return potentiallyNewPlaces.filter(p => !placeMap.has(p.id)).length;
 }
 
 export function addPlacesToMap(

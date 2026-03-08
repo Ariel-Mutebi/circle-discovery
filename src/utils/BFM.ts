@@ -1,8 +1,9 @@
 import type { Circle, CircleWithID, FetchPlaces, GetCircleId, LatLng, Place, PlaceMap } from "../types.js";
 import { latLngToCartesian, cartesianToLatLng, distanceBetween, move, extendLine } from "./cartesian.js";
-import { addPlacesToMap, coordinatesOfPlaces } from "./filters.js";
+import { addPlacesToMap, coordinatesOfPlaces, countNewPlaces } from "./filters.js";
 
 const MAX_ITERATIONS = 10;
+const EPSILON = 10;
 const NOC_FACTOR = 0.86;
 const EXPANSION_FACTOR = 1.8;
 const CONTRACTION_FACTOR = 0.9;
@@ -99,10 +100,14 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
 
     const results = await fetchPlaces(densityDrill as Circle);
     addToGlobalPlacesMap(results);
+    const newCount = countNewPlaces(localPlacesMap, results);
     addPlacesToMap(results, localPlacesMap);
     barycenter = getBarycenter();
 
+    if (newCount < EPSILON) break;
     if (results.length < 20) break;
+    if (radius < EPSILON) break;
+    
     radius *= CONTRACTION_FACTOR;
   }
 

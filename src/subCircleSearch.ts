@@ -7,9 +7,9 @@ import {
 import {
   createIdentity,
   addPlacesToMap,
-  makeIsWithinInitialCircle,
 } from "./utils/filters.js";
 import type { Place, LatLng, CircleWithID, FetchPlaces } from "./types.js";
+import { distanceBetween } from "./utils/cartesian.js";
 
 interface SubCircleSearchParams {
   initialCenter: LatLng;
@@ -31,7 +31,7 @@ export async function subCircleSearch({
   }];
 
   const globalPlacesMap = new Map<string, Place>();
-  const isWithinInitialCircle = makeIsWithinInitialCircle(initialCenter, initialRadius);
+  const isWithinInitialCircle = (point: LatLng) => distanceBetween(initialCenter, point) < initialRadius;
   const getSourceCircle = (sourceId: number) => coveredCircles.find(c => c.id === sourceId);
 
   while (uncoveredCircles.length > 0) {
