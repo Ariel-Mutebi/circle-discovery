@@ -50,13 +50,20 @@ export async function subCircleSearch({
         coveredCircles.push(circle);
       } else {
         const sourceCircle = getSourceCircle(circle.sourceId)!;
-        coveredCircles.push(await expandCircle({
+        const expandedCircle = await expandCircle({
           circle,
           fetchPlaces,
           getCircleId,
           maxRadius: initialRadius,
           sourceCenter: sourceCircle.center,
-        }));
+        });
+        coveredCircles.push(expandedCircle);
+        uncoveredCircles.push(...generateSubCircles({
+          barycenter: expandedCircle.center, // not true, but a reasonable heuristic
+          localDensityScale: expandedCircle.radius,
+          sourceId: expandedCircle.id,
+          getCircleId,
+        }))
       }
 
       continue;
