@@ -38,8 +38,20 @@ export function calculateBarycenter(points: LatLng[]): LatLng {
   return cartesianToLatLng({ x, y, z });
 }
 
-export const calculateLocalDensityScale = (barycenter: LatLng, coordinates: LatLng[]) =>
-  coordinates.map(c => distanceBetween(barycenter, c)).sort((a, b) => a - b).at(-1) ?? 0;
+export const calculateLocalDensityScale = (
+  barycenter: LatLng,
+  coordinates: LatLng[]
+) => {
+  const distances = coordinates
+    .map(c => distanceBetween(barycenter, c))
+    .sort((a, b) => a - b);
+
+  if (distances.length < 20) {
+    return distances.at(-1) ?? 0;
+  }
+
+  return distances[19];
+};
 
 
 export function respectsNOC(candidateCircle: Circle, existingCircles: Circle[]) {
@@ -88,14 +100,14 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
     const results = await fetchPlaces(densityDrill as Circle);
     addToGlobalPlacesMap(results);
     addPlacesToMap(results, localPlacesMap);
+    barycenter = getBarycenter();
 
     if (results.length < 20) break;
-    barycenter = getBarycenter();
     radius *= CONTRACTION_FACTOR;
   }
 
   return {
-    center: getBarycenter(),
+    center: barycenter,
     radius: getLocalDensityScale(),
     id: getCircleId(),
   };
