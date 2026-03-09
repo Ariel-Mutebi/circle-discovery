@@ -63,8 +63,8 @@ const restaurants = await subCircleSearch({
 
 ```typescript
 interface LatLng {
-  lat: number;
-  lng: number;
+  latitude: number;
+  longitude: number;
 }
 
 interface Circle {
@@ -73,6 +73,7 @@ interface Circle {
 }
 
 interface Place {
+  id: string;
   location?: LatLng;
   [key: string]: unknown; // any additional fields from your API
 }
