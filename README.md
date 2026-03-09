@@ -18,6 +18,8 @@ Google's Nearby Search API returns at most 20 results per query. For any area wi
 
 This means the algorithm self-calibrates: dense urban areas get small, tightly-packed sub-circles; sparse areas get large ones. API calls are never wasted on already-covered regions.
 
+Watch the algorithm in action here: [https://circle-revelation.pages.dev/](https://circle-revelation.pages.dev/)
+
 ## Installation
 
 ```bash
