@@ -41,13 +41,14 @@ export function calculateBarycenter(points: LatLng[]): LatLng {
 
 export const calculateLocalDensityScale = (
   barycenter: LatLng,
-  coordinates: LatLng[]
+  coordinates: LatLng[],
+  saturationLimit: number,
 ) => {
   const distances = coordinates
     .map(c => distanceBetween(barycenter, c))
     .sort((a, b) => a - b);
 
-  if (distances.length < 20) {
+  if (distances.length < saturationLimit) {
     return distances.at(-1) ?? 0;
   }
 
@@ -73,22 +74,31 @@ export function respectsNOC(candidateCircle: Circle, existingCircles: Circle[]) 
  * contracting the radius so that the true local density scale is found.
  */
 interface StabilizeBarycenterParams {
+  saturationLimit: number;
   localPlacesMap: PlaceMap;
   getCircleId: GetCircleId;
   fetchPlaces: FetchPlaces;
   addToGlobalPlacesMap: (p: Place[]) => void;
 }
 
-export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Promise<CircleWithID> {
-  const { localPlacesMap, getCircleId, fetchPlaces, addToGlobalPlacesMap } = params;
-
+export async function stabilizeBarycenter({
+  saturationLimit,
+  localPlacesMap,
+  getCircleId,
+  fetchPlaces,
+  addToGlobalPlacesMap,
+}: StabilizeBarycenterParams): Promise<CircleWithID> {
   const getBarycenter = () =>
     calculateBarycenter(coordinatesOfPlaces([...localPlacesMap.values()]));
 
   let barycenter = getBarycenter();
 
   const getLocalDensityScale = () =>
-    calculateLocalDensityScale(barycenter, coordinatesOfPlaces([...localPlacesMap.values()]));
+    calculateLocalDensityScale(
+      barycenter,
+      coordinatesOfPlaces([...localPlacesMap.values()]),
+      saturationLimit,
+    );
 
   let radius = getLocalDensityScale();
 
@@ -105,7 +115,7 @@ export async function stabilizeBarycenter(params: StabilizeBarycenterParams): Pr
     barycenter = getBarycenter();
 
     if (newCount < EPSILON) break;
-    if (results.length < 20) break;
+    if (results.length < saturationLimit) break;
     if (radius < EPSILON) break;
     
     radius *= CONTRACTION_FACTOR;
@@ -145,18 +155,19 @@ interface ExpandCircleParams {
   maxRadius: number;
   circle: CircleWithID;
   sourceCenter: LatLng;
+  saturationLimit: number;
   fetchPlaces: FetchPlaces;
   getCircleId: GetCircleId;
 }
 
-export async function expandCircle(params: ExpandCircleParams): Promise<CircleWithID> {
-  const {
-    circle,
-    maxRadius,
-    sourceCenter,
-    fetchPlaces,
-    getCircleId,
-  } = params;
+export async function expandCircle({
+  circle,
+  maxRadius,
+  sourceCenter,
+  saturationLimit,
+  fetchPlaces,
+  getCircleId,
+}: ExpandCircleParams): Promise<CircleWithID> {
   let fullyExpandedCircle = circle;
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
@@ -171,7 +182,7 @@ export async function expandCircle(params: ExpandCircleParams): Promise<CircleWi
     }
 
     const results = await fetchPlaces(partiallyRecalibratedCircle);
-    if (results.length === 20) break;
+    if (results.length === saturationLimit) break;
 
     fullyExpandedCircle = partiallyRecalibratedCircle;
   }

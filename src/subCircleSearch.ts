@@ -15,12 +15,14 @@ interface SubCircleSearchParams {
   initialCenter: LatLng;
   initialRadius: number;
   fetchPlaces: FetchPlaces;
+  saturationLimit?: number;
 }
 
 export async function subCircleSearch({
   fetchPlaces,
   initialCenter,
   initialRadius,
+  saturationLimit = 20, // assumes working with Google NearPlaces
 }: SubCircleSearchParams) {
   const getCircleId = createIdentity();
   const coveredCircles: CircleWithID[] = [];
@@ -45,7 +47,7 @@ export async function subCircleSearch({
     const localPlaces = await fetchPlaces(circle);
     addPlacesToMap(localPlaces, globalPlacesMap, isWithinInitialCircle);
 
-    if (localPlaces.length < 20) {
+    if (localPlaces.length < saturationLimit) {
       if (!circle.sourceId) { // if initial circle
         coveredCircles.push(circle);
       } else {
@@ -54,6 +56,7 @@ export async function subCircleSearch({
           circle,
           fetchPlaces,
           getCircleId,
+          saturationLimit,
           maxRadius: initialRadius,
           sourceCenter: sourceCircle.center,
         });
@@ -71,6 +74,7 @@ export async function subCircleSearch({
 
     const localPlacesMap = new Map<string, Place>(localPlaces.map(p => [p.id, p]));
     const stabilizedBarycenterCircle = await stabilizeBarycenter({
+      saturationLimit,
       localPlacesMap,
       getCircleId,
       fetchPlaces,
