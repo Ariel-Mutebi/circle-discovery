@@ -1,5 +1,4 @@
 import {
-  respectsNOC,
   stabilizeBarycenter,
   generateSubCircles,
   expandCircle,
@@ -7,6 +6,8 @@ import {
 import {
   createIdentity,
   addPlacesToMap,
+  generateIsWithinCircle,
+  predictQueryEfficiency,
 } from "./utils/filters.js";
 import type { Place, LatLng, CircleWithID, FetchPlaces } from "./types.js";
 import { distanceBetween } from "./utils/cartesian.js";
@@ -25,15 +26,17 @@ export async function subCircleSearch({
   saturationLimit = 20, // assumes working with Google NearPlaces
 }: SubCircleSearchParams) {
   const getCircleId = createIdentity();
-  const coveredCircles: CircleWithID[] = [];
-  const uncoveredCircles: CircleWithID[] = [{
+  const initialCircle: CircleWithID = {
     center: initialCenter,
     radius: initialRadius,
     id: getCircleId(),
-  }];
+  };
+
+  const coveredCircles: CircleWithID[] = [];
+  const uncoveredCircles = [initialCircle];
 
   const globalPlacesMap = new Map<string, Place>();
-  const isWithinInitialCircle = (point: LatLng) => distanceBetween(initialCenter, point) < initialRadius;
+  const isWithinInitialCircle = generateIsWithinCircle(initialCircle);
   const getSourceCircle = (sourceId: number) => coveredCircles.find(c => c.id === sourceId);
 
   while (uncoveredCircles.length > 0) {
@@ -42,7 +45,12 @@ export async function subCircleSearch({
 
     const circle = uncoveredCircles.shift()!;
 
-    if (!isWithinInitialCircle(circle.center) || !respectsNOC(circle, coveredCircles)) continue;
+    if (
+      !isWithinInitialCircle({ location: circle.center }) ||
+      (predictQueryEfficiency(circle, [...globalPlacesMap.values()], saturationLimit) < 0.5)
+    ) {
+      continue
+    };
 
     const localPlaces = await fetchPlaces(circle);
     addPlacesToMap(localPlaces, globalPlacesMap, isWithinInitialCircle);
@@ -72,13 +80,12 @@ export async function subCircleSearch({
       continue;
     }
 
-    const localPlacesMap = new Map<string, Place>(localPlaces.map(p => [p.id, p]));
     const stabilizedBarycenterCircle = await stabilizeBarycenter({
       saturationLimit,
-      localPlacesMap,
+      globalPlacesMap,
       getCircleId,
       fetchPlaces,
-      addToGlobalPlacesMap: (p) => addPlacesToMap(p, globalPlacesMap, isWithinInitialCircle),
+      isWithinInitialCircle,
     });
 
     coveredCircles.push(stabilizedBarycenterCircle);

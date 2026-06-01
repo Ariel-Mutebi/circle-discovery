@@ -1,6 +1,5 @@
 // Some days I wish that the Earth were flat.
 import type { LatLng } from "../types.js";
-import { clamp } from "./filters.js";
 
 const EARTH_RADIUS_METRES = 6_371_000;
 
@@ -63,7 +62,7 @@ export function distanceBetween(a: LatLng, b: LatLng) {
   const dot = A.x * B.x + A.y * B.y + A.z * B.z;
 
   // 1 ≤ cos(θ) ≤ 1: no room for floating point errors
-  const angle = Math.acos(clamp(-1, dot, 1));
+  const angle = Math.acos(Math.min(Math.max(dot, -1), 1));
 
   return EARTH_RADIUS_METRES * angle;
 }

@@ -1,10 +1,8 @@
 import type { Circle, CircleWithID, FetchPlaces, GetCircleId, LatLng, Place, PlaceMap } from "../types.js";
 import { latLngToCartesian, cartesianToLatLng, distanceBetween, move, extendLine } from "./cartesian.js";
-import { addPlacesToMap, coordinatesOfPlaces, countNewPlaces } from "./filters.js";
+import { addPlacesToMap, coordinatesOfPlaces, generateIsWithinCircle, getQueryEfficiency } from "./filters.js";
 
 const MAX_ITERATIONS = 10;
-const EPSILON = 10;
-const NOC_FACTOR = 0.86;
 const EXPANSION_FACTOR = 1.8;
 const CONTRACTION_FACTOR = 0.9;
 
@@ -55,48 +53,34 @@ export const calculateLocalDensityScale = (
   return distances[19];
 };
 
-
-export function respectsNOC(candidateCircle: Circle, existingCircles: Circle[]) {
-  for (const existingCircle of existingCircles) {
-    const minDist = NOC_FACTOR * (candidateCircle.radius + existingCircle.radius);
-
-    if (
-      distanceBetween(candidateCircle.center, existingCircle.center) < minDist
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
-
 /**
  * Iteratively moves the barycenter toward the densest region of places,
  * contracting the radius so that the true local density scale is found.
  */
 interface StabilizeBarycenterParams {
+  globalPlacesMap: PlaceMap;
   saturationLimit: number;
-  localPlacesMap: PlaceMap;
   getCircleId: GetCircleId;
   fetchPlaces: FetchPlaces;
-  addToGlobalPlacesMap: (p: Place[]) => void;
+  isWithinInitialCircle: ReturnType<typeof generateIsWithinCircle>
 }
 
 export async function stabilizeBarycenter({
   saturationLimit,
-  localPlacesMap,
+  globalPlacesMap,
   getCircleId,
   fetchPlaces,
-  addToGlobalPlacesMap,
+  isWithinInitialCircle,
 }: StabilizeBarycenterParams): Promise<CircleWithID> {
   const getBarycenter = () =>
-    calculateBarycenter(coordinatesOfPlaces([...localPlacesMap.values()]));
+    calculateBarycenter(coordinatesOfPlaces([...globalPlacesMap.values()]));
 
   let barycenter = getBarycenter();
 
   const getLocalDensityScale = () =>
     calculateLocalDensityScale(
       barycenter,
-      coordinatesOfPlaces([...localPlacesMap.values()]),
+      coordinatesOfPlaces([...globalPlacesMap.values()]),
       saturationLimit,
     );
 
@@ -108,15 +92,13 @@ export async function stabilizeBarycenter({
     densityDrill.center = barycenter;
     densityDrill.radius = radius;
 
-    const results = await fetchPlaces(densityDrill as Circle);
-    addToGlobalPlacesMap(results);
-    const newCount = countNewPlaces(localPlacesMap, results);
-    addPlacesToMap(results, localPlacesMap);
+    const results = (await fetchPlaces(densityDrill as Circle)).filter(isWithinInitialCircle);
+    const efficiency = getQueryEfficiency(globalPlacesMap, results, saturationLimit);
+    addPlacesToMap(results, globalPlacesMap);
     barycenter = getBarycenter();
 
-    if (newCount < EPSILON) break;
+    if (efficiency < 0.5) break;
     if (results.length < saturationLimit) break;
-    if (radius < EPSILON) break;
     
     radius *= CONTRACTION_FACTOR;
   }
