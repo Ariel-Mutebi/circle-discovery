@@ -5,6 +5,18 @@ import { addPlacesToMap, coordinatesOfPlaces, generateIsWithinCircle, getQueryEf
 const MAX_ITERATIONS = 10;
 const EXPANSION_FACTOR = 1.8;
 const CONTRACTION_FACTOR = 0.9;
+const NOC_FACTOR = 0.86;
+
+export function respectsNOC(candidateCircle: Circle, existingCircles: Circle[]) {
+  for (const existingCircle of existingCircles) {
+    const minDist = NOC_FACTOR * (candidateCircle.radius + existingCircle.radius);
+
+    if (distanceBetween(candidateCircle.center, existingCircle.center) < minDist) {
+      return false;
+    }
+  }
+  return true;
+}
 
 export function calculateBarycenter(points: LatLng[]): LatLng {
   if (points.length === 0) {
@@ -104,7 +116,6 @@ export async function stabilizeBarycenter({
     const efficiency = getQueryEfficiency(globalPlacesMap, results, saturationLimit);
     addPlacesToMap(results, globalPlacesMap);
 
-    console.log(efficiency);
     if (efficiency < 0.75) break;
     if (results.length < saturationLimit) break;
     

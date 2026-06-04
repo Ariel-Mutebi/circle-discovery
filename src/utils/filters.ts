@@ -48,15 +48,3 @@ export function getQueryEfficiency(
   const newPOIs = potentiallyNewPOIs.filter(p => !globalPlacesMap.has(p.id)).length;
   return newPOIs / saturationLimit;
 }
-
-/**
- * predicted query efficiency = (saturation limit - POIs already known in candidate circle) / saturation limit
- */
-export function predictQueryEfficiency(
-  candidateCircle: Circle,
-  allKnownPlaces: Place[],
-  saturationLimit: number,
-) {
-  const knownPOIsInCircle = allKnownPlaces.filter(generateIsWithinCircle(candidateCircle));
-  return (saturationLimit - knownPOIsInCircle.length) / saturationLimit;
-}

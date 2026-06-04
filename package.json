@@ -23,8 +23,8 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run build",
-    "test": "vitest run"
+    "watch": "tsc --watch --preserveWatchOutput",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

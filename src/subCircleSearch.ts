@@ -1,4 +1,5 @@
 import {
+  respectsNOC,
   stabilizeBarycenter,
   generateSubCircles,
   expandCircle,
@@ -7,7 +8,6 @@ import {
   createIdentity,
   addPlacesToMap,
   generateIsWithinCircle,
-  predictQueryEfficiency,
 } from "./utils/filters.js";
 import type { Place, LatLng, CircleWithID, FetchPlaces } from "./types.js";
 
@@ -41,12 +41,11 @@ export async function subCircleSearch({
   while (uncoveredCircles.length > 0) {
     // prioritize large sub-circles to improve performance
     uncoveredCircles.sort((a, b) => b.radius - a.radius);
-
     const circle = uncoveredCircles.shift()!;
 
     if (
       !isWithinInitialCircle({ location: circle.center }) ||
-      (predictQueryEfficiency(circle, [...globalPlacesMap.values()], saturationLimit) < 0.75)
+      !respectsNOC(circle, coveredCircles)
     ) {
       continue
     };
