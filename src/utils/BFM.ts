@@ -1,10 +1,11 @@
-import type { Circle, CircleWithID, FetchPlaces, GetCircleId, LatLng, Place, PlaceMap } from "../types.js";
+import type { Circle, CircleWithID, FetchPlaces, GetCircleId, LatLng, PlaceMap } from "../types.js";
 import { latLngToCartesian, cartesianToLatLng, distanceBetween, move, extendLine } from "./cartesian.js";
 import { addPlacesToMap, coordinatesOfPlaces, generateIsWithinCircle, getQueryEfficiency } from "./filters.js";
 
 const MAX_ITERATIONS = 10;
 const EXPANSION_FACTOR = 1.8;
 const CONTRACTION_FACTOR = 0.9;
+const MINIMUM_EFFICIENCY = 0.6;
 const NOC_FACTOR = 0.86;
 
 export function respectsNOC(candidateCircle: Circle, existingCircles: Circle[]) {
@@ -116,7 +117,7 @@ export async function stabilizeBarycenter({
     const efficiency = getQueryEfficiency(globalPlacesMap, results, saturationLimit);
     addPlacesToMap(results, globalPlacesMap);
 
-    if (efficiency < 0.75) break;
+    if (efficiency < MINIMUM_EFFICIENCY) break;
     if (results.length < saturationLimit) break;
     
     barycenter = getBarycenter(densityDrill);
