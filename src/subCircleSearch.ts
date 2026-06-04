@@ -10,7 +10,6 @@ import {
   predictQueryEfficiency,
 } from "./utils/filters.js";
 import type { Place, LatLng, CircleWithID, FetchPlaces } from "./types.js";
-import { distanceBetween } from "./utils/cartesian.js";
 
 interface SubCircleSearchParams {
   initialCenter: LatLng;
@@ -47,7 +46,7 @@ export async function subCircleSearch({
 
     if (
       !isWithinInitialCircle({ location: circle.center }) ||
-      (predictQueryEfficiency(circle, [...globalPlacesMap.values()], saturationLimit) < 0.5)
+      (predictQueryEfficiency(circle, [...globalPlacesMap.values()], saturationLimit) < 0.75)
     ) {
       continue
     };
@@ -81,6 +80,7 @@ export async function subCircleSearch({
     }
 
     const stabilizedBarycenterCircle = await stabilizeBarycenter({
+      callerCircle: circle,
       saturationLimit,
       globalPlacesMap,
       getCircleId,

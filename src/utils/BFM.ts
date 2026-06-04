@@ -58,6 +58,7 @@ export const calculateLocalDensityScale = (
  * contracting the radius so that the true local density scale is found.
  */
 interface StabilizeBarycenterParams {
+  callerCircle: Circle;
   globalPlacesMap: PlaceMap;
   saturationLimit: number;
   getCircleId: GetCircleId;
@@ -66,46 +67,57 @@ interface StabilizeBarycenterParams {
 }
 
 export async function stabilizeBarycenter({
+  callerCircle,
   saturationLimit,
   globalPlacesMap,
   getCircleId,
   fetchPlaces,
   isWithinInitialCircle,
 }: StabilizeBarycenterParams): Promise<CircleWithID> {
-  const getBarycenter = () =>
-    calculateBarycenter(coordinatesOfPlaces([...globalPlacesMap.values()]));
+  const getBarycenter = (circle: Circle) =>
+    calculateBarycenter(
+      coordinatesOfPlaces(
+        [...globalPlacesMap.values()].filter(generateIsWithinCircle(circle))
+      )
+    );
 
-  let barycenter = getBarycenter();
+  let barycenter = getBarycenter(callerCircle);
 
-  const getLocalDensityScale = () =>
+  const getLocalDensityScale = (circle: Circle) =>
     calculateLocalDensityScale(
       barycenter,
-      coordinatesOfPlaces([...globalPlacesMap.values()]),
+      coordinatesOfPlaces(
+        [...globalPlacesMap.values()].filter(generateIsWithinCircle(circle))
+      ),
       saturationLimit,
     );
 
-  let radius = getLocalDensityScale();
+  let radius = getLocalDensityScale(callerCircle);
 
-  const densityDrill: Partial<Circle> = {};
+  const densityDrill: Circle = {
+    radius,
+    center: barycenter,
+  };
 
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    densityDrill.center = barycenter;
-    densityDrill.radius = radius;
-
-    const results = (await fetchPlaces(densityDrill as Circle)).filter(isWithinInitialCircle);
+    const results = (await fetchPlaces(densityDrill)).filter(isWithinInitialCircle);
     const efficiency = getQueryEfficiency(globalPlacesMap, results, saturationLimit);
     addPlacesToMap(results, globalPlacesMap);
-    barycenter = getBarycenter();
 
-    if (efficiency < 0.5) break;
+    console.log(efficiency);
+    if (efficiency < 0.75) break;
     if (results.length < saturationLimit) break;
     
+    barycenter = getBarycenter(densityDrill);
     radius *= CONTRACTION_FACTOR;
+
+    densityDrill.center = barycenter;
+    densityDrill.radius = radius;
   }
 
   return {
     center: barycenter,
-    radius: getLocalDensityScale(),
+    radius: getLocalDensityScale(densityDrill),
     id: getCircleId(),
   };
 }
