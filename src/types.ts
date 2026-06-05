@@ -21,5 +21,5 @@ export interface CircleWithID extends Circle {
 }
 
 export type FetchPlaces = (circle: Circle) => Promise<Place[]>;
-export type GetCircleId = ReturnType<typeof createIdentity>;
+export type MakeCircleId = ReturnType<typeof createIdentity>;
 export type PlaceMap = Map<string, Place>;

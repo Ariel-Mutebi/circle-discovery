@@ -1,4 +1,4 @@
-import type { Circle, CircleWithID, FetchPlaces, GetCircleId, LatLng, PlaceMap } from "../types.js";
+import type { Circle, CircleWithID, FetchPlaces, MakeCircleId, LatLng, PlaceMap } from "../types.js";
 import { latLngToCartesian, cartesianToLatLng, distanceBetween, move, extendLine } from "./cartesian.js";
 import { addPlacesToMap, coordinatesOfPlaces, generateIsWithinCircle, getQueryEfficiency } from "./filters.js";
 
@@ -74,7 +74,7 @@ interface StabilizeBarycenterParams {
   callerCircle: Circle;
   globalPlacesMap: PlaceMap;
   saturationLimit: number;
-  getCircleId: GetCircleId;
+  getCircleId: MakeCircleId;
   fetchPlaces: FetchPlaces;
   isWithinInitialCircle: ReturnType<typeof generateIsWithinCircle>
 }
@@ -139,7 +139,7 @@ interface GenerateSubCirclesParams {
   barycenter: LatLng;
   localDensityScale: number;
   sourceId: number;
-  getCircleId: GetCircleId;
+  getCircleId: MakeCircleId;
 };
 
 export function generateSubCircles(params: GenerateSubCirclesParams): CircleWithID[] {
@@ -163,7 +163,7 @@ interface ExpandCircleParams {
   sourceCenter: LatLng;
   saturationLimit: number;
   fetchPlaces: FetchPlaces;
-  getCircleId: GetCircleId;
+  getCircleId: MakeCircleId;
 }
 
 export async function expandCircle({
