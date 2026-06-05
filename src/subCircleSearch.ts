@@ -1,6 +1,5 @@
 import {
   respectsNOC,
-  stabilizeBarycenter,
   generateSubCircles,
   expandCircle,
 } from "./utils/BFM.js";
@@ -9,6 +8,7 @@ import {
   addPlacesToMap,
   generateIsWithinCircle,
 } from "./utils/filters.js";
+import { getSaturatedCircleAtBarycenter } from "./utils/interior.js";
 import type { Place, LatLng, CircleWithID, FetchPlaces } from "./types.js";
 
 interface SubCircleSearchParams {
@@ -24,11 +24,11 @@ export async function subCircleSearch({
   initialRadius,
   saturationLimit = 20, // assumes working with Google NearPlaces
 }: SubCircleSearchParams) {
-  const getCircleId = createIdentity();
+  const makeCircleId = createIdentity();
   const initialCircle: CircleWithID = {
     center: initialCenter,
     radius: initialRadius,
-    id: getCircleId(),
+    id: makeCircleId(),
   };
 
   const coveredCircles: CircleWithID[] = [];
@@ -61,7 +61,7 @@ export async function subCircleSearch({
         const expandedCircle = await expandCircle({
           circle,
           fetchPlaces,
-          getCircleId,
+          getCircleId: makeCircleId,
           saturationLimit,
           maxRadius: initialRadius,
           sourceCenter: sourceCircle.center,
@@ -71,29 +71,29 @@ export async function subCircleSearch({
           barycenter: expandedCircle.center, // not true, but a reasonable heuristic
           localDensityScale: expandedCircle.radius,
           sourceId: expandedCircle.id,
-          getCircleId,
+          getCircleId: makeCircleId,
         }))
       }
 
       continue;
     }
 
-    const stabilizedBarycenterCircle = await stabilizeBarycenter({
+    const saturatedCircle = await getSaturatedCircleAtBarycenter({
       callerCircle: circle,
       saturationLimit,
       globalPlacesMap,
-      getCircleId,
+      makeCircleId,
       fetchPlaces,
       isWithinInitialCircle,
     });
 
-    coveredCircles.push(stabilizedBarycenterCircle);
+    coveredCircles.push(saturatedCircle);
 
     uncoveredCircles.push(...generateSubCircles({
-      barycenter: stabilizedBarycenterCircle.center,
-      localDensityScale: stabilizedBarycenterCircle.radius,
-      sourceId: stabilizedBarycenterCircle.id,
-      getCircleId,
+      barycenter: saturatedCircle.center,
+      localDensityScale: saturatedCircle.radius,
+      sourceId: saturatedCircle.id,
+      getCircleId: makeCircleId,
     }));
   }
 

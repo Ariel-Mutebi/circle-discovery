@@ -4,6 +4,7 @@ import type { Circle, PlaceMap, MakeCircleId, FetchPlaces, CircleWithID } from "
 
 const MIN_RADIUS = 100;
 const MAX_ITERATIONS = 10;
+const CONVERGENCE_TOLERANCE = 0.1;
 
 interface GetSaturatedCircleAtBarycenterParams {
   callerCircle: Circle;
@@ -15,15 +16,8 @@ interface GetSaturatedCircleAtBarycenterParams {
 }
 
 /**
- * Mode of interior exploration.
- * @returns saturated circle at the center of mass.
- * 
- * Optimized with binary search. The original implementation used
- * linear search + a contraction factor of 0.9 (distance is a continuous
- * variable, so it is necessary to turn a continuous range into a set of
- * discrete points for the search). This uses binary search to find the
- * barycenter and an accurate local density scale (works well with the
- * continuous nature of the search space, approximately O(log n) api calls).
+ * Mode of interior exploration, optimized with binary search.
+ * @returns circle with radius of local density scale at the center of mass.
  */
 export async function getSaturatedCircleAtBarycenter({
   callerCircle,
@@ -40,41 +34,41 @@ export async function getSaturatedCircleAtBarycenter({
       )
     );
 
-  let iteration = 0;
-  let minRadius = MIN_RADIUS;
-  let maxRadius = callerCircle.radius;
+  let low = MIN_RADIUS;
+  let high = callerCircle.radius;
 
-  while (minRadius < maxRadius || iteration < MAX_ITERATIONS ) {
-    const midRadius = (maxRadius - minRadius) / 2;
+  let smallestSaturated: CircleWithID = {
+    id: makeCircleId(),
+    radius: high,
+    center: getBarycenter(),
+  };
 
-    const subCircle: CircleWithID = {
+  for (let i = 0; i < MAX_ITERATIONS && (high - low) > callerCircle.radius * CONVERGENCE_TOLERANCE; i++) {
+    const midRadius = (low + high) / 2;
+    const candidate: CircleWithID = {
       id: makeCircleId(),
       radius: midRadius,
       center: getBarycenter(),
     };
 
-    // Filter isn't so necessary as this is interior exploration, but in case.
-    const POIs = (await fetchPlaces(subCircle)).filter(isWithinInitialCircle);
-    addPlacesToMap(POIs, globalPlacesMap);
+    const isWithinCandidate = generateIsWithinCircle(candidate);
 
-    // +- 10% of saturation limit to prevent over-refinement
-    if (POIs.length < saturationLimit - saturationLimit * 0.1) {
-      minRadius = midRadius;
-    } else if (POIs.length > saturationLimit + saturationLimit * 0.1) {
-      maxRadius = midRadius;
-    } else {
-      return subCircle;
+    const knownInCandidate = [...globalPlacesMap.values()].filter(isWithinCandidate).length;
+
+    if (knownInCandidate < saturationLimit) {
+      const POIs = (await fetchPlaces(candidate)).filter(isWithinInitialCircle);
+      addPlacesToMap(POIs, globalPlacesMap);
     }
 
-    iteration++;
+    const totalInCandidate = [...globalPlacesMap.values()].filter(isWithinCandidate).length;
+
+    if (totalInCandidate >= saturationLimit) {
+      high = midRadius;
+      smallestSaturated = candidate;
+    } else {
+      low = midRadius;
+    }
   }
 
-  /**
-   * Unreachable: it is extremely unlikely for minRadius to equal maxRadius.
-  */
-  return {
-    id: makeCircleId(),
-    radius: minRadius,
-    center: getBarycenter(),
-  };
+  return smallestSaturated;
 }
