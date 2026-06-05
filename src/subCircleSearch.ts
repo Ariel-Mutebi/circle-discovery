@@ -65,6 +65,7 @@ export async function subCircleSearch({
           saturationLimit,
           maxRadius: initialRadius,
           sourceCenter: sourceCircle.center,
+          isWithinInitialCircle,
         });
         coveredCircles.push(expandedCircle);
         uncoveredCircles.push(...generateSubCircles({

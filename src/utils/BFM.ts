@@ -4,8 +4,6 @@ import { addPlacesToMap, coordinatesOfPlaces, generateIsWithinCircle, getQueryEf
 
 const MAX_ITERATIONS = 10;
 const EXPANSION_FACTOR = 1.8;
-const CONTRACTION_FACTOR = 0.9;
-const MINIMUM_EFFICIENCY = 0.6;
 const NOC_FACTOR = 0.86;
 
 export function respectsNOC(candidateCircle: Circle, existingCircles: Circle[]) {
@@ -66,74 +64,6 @@ export const calculateLocalDensityScale = (
   return distances[19];
 };
 
-/**
- * Iteratively moves the barycenter toward the densest region of places,
- * contracting the radius so that the true local density scale is found.
- */
-interface StabilizeBarycenterParams {
-  callerCircle: Circle;
-  globalPlacesMap: PlaceMap;
-  saturationLimit: number;
-  getCircleId: MakeCircleId;
-  fetchPlaces: FetchPlaces;
-  isWithinInitialCircle: ReturnType<typeof generateIsWithinCircle>
-}
-
-export async function stabilizeBarycenter({
-  callerCircle,
-  saturationLimit,
-  globalPlacesMap,
-  getCircleId,
-  fetchPlaces,
-  isWithinInitialCircle,
-}: StabilizeBarycenterParams): Promise<CircleWithID> {
-  const getBarycenter = (circle: Circle) =>
-    calculateBarycenter(
-      coordinatesOfPlaces(
-        [...globalPlacesMap.values()].filter(generateIsWithinCircle(circle))
-      )
-    );
-
-  let barycenter = getBarycenter(callerCircle);
-
-  const getLocalDensityScale = (circle: Circle) =>
-    calculateLocalDensityScale(
-      barycenter,
-      coordinatesOfPlaces(
-        [...globalPlacesMap.values()].filter(generateIsWithinCircle(circle))
-      ),
-      saturationLimit,
-    );
-
-  let radius = getLocalDensityScale(callerCircle);
-
-  const densityDrill: Circle = {
-    radius,
-    center: barycenter,
-  };
-
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const results = (await fetchPlaces(densityDrill)).filter(isWithinInitialCircle);
-    const efficiency = getQueryEfficiency(globalPlacesMap, results, saturationLimit);
-    addPlacesToMap(results, globalPlacesMap);
-
-    if (efficiency < MINIMUM_EFFICIENCY) break;
-    if (results.length < saturationLimit) break;
-    
-    barycenter = getBarycenter(densityDrill);
-    radius *= CONTRACTION_FACTOR;
-
-    densityDrill.center = barycenter;
-    densityDrill.radius = radius;
-  }
-
-  return {
-    center: barycenter,
-    radius: getLocalDensityScale(densityDrill),
-    id: getCircleId(),
-  };
-}
-
 // Generate 6 sub-circles hexagonally around a barycenter
 interface GenerateSubCirclesParams {
   barycenter: LatLng;
@@ -164,6 +94,7 @@ interface ExpandCircleParams {
   saturationLimit: number;
   fetchPlaces: FetchPlaces;
   getCircleId: MakeCircleId;
+  isWithinInitialCircle: ReturnType<typeof generateIsWithinCircle>
 }
 
 export async function expandCircle({
@@ -173,10 +104,11 @@ export async function expandCircle({
   saturationLimit,
   fetchPlaces,
   getCircleId,
+  isWithinInitialCircle,
 }: ExpandCircleParams): Promise<CircleWithID> {
   let fullyExpandedCircle = circle;
 
-  for (let i = 0; i < MAX_ITERATIONS; i++) {
+  for (let i = 0; i < MAX_ITERATIONS && isWithinInitialCircle({ location: fullyExpandedCircle.center }); i++) {
     const initialRadius = fullyExpandedCircle.radius;
     const increasedRadius = Math.min(initialRadius * EXPANSION_FACTOR, maxRadius);
     const deltaRadius = increasedRadius - initialRadius;
