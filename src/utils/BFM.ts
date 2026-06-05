@@ -44,19 +44,3 @@ export function calculateBarycenter(points: LatLng[]): LatLng {
 
   return cartesianToLatLng({ x, y, z });
 }
-
-export const calculateLocalDensityScale = (
-  barycenter: LatLng,
-  coordinates: LatLng[],
-  saturationLimit: number,
-) => {
-  const distances = coordinates
-    .map(c => distanceBetween(barycenter, c))
-    .sort((a, b) => a - b);
-
-  if (distances.length < saturationLimit) {
-    return distances.at(-1) ?? 0;
-  }
-
-  return distances[19];
-};
