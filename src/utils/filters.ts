@@ -34,17 +34,3 @@ export function createIdentity() {
     return current++;
   };
 }
-
-/**
- * A maximally efficient query is one which returns only new POIs.
- * 
- * Therefore, query efficiency = new POIs / saturation limit.
- */
-export function getQueryEfficiency(
-  globalPlacesMap: PlaceMap,
-  potentiallyNewPOIs: Place[],
-  saturationLimit: number,
-) {
-  const newPOIs = potentiallyNewPOIs.filter(p => !globalPlacesMap.has(p.id)).length;
-  return newPOIs / saturationLimit;
-}

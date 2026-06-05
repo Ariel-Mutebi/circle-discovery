@@ -1,14 +1,7 @@
-import {
-  respectsNOC,
-  generateSubCircles,
-  expandCircle,
-} from "./utils/BFM.js";
-import {
-  createIdentity,
-  addPlacesToMap,
-  generateIsWithinCircle,
-} from "./utils/filters.js";
+import { respectsNOC } from "./utils/BFM.js";
+import { createIdentity, addPlacesToMap, generateIsWithinCircle } from "./utils/filters.js";
 import { getSaturatedCircleAtBarycenter } from "./utils/interior.js";
+import { tesselateFrom, expandCircle } from "./utils/frontier.js";
 import type { Place, LatLng, CircleWithID, FetchPlaces } from "./types.js";
 
 interface SubCircleSearchParams {
@@ -68,11 +61,13 @@ export async function subCircleSearch({
           isWithinInitialCircle,
         });
         coveredCircles.push(expandedCircle);
-        uncoveredCircles.push(...generateSubCircles({
-          barycenter: expandedCircle.center, // not true, but a reasonable heuristic
+        uncoveredCircles.push(...tesselateFrom({
+          makeCircleId,
+          globalPlacesMap,
+          saturationLimit,
+          barycenter: expandedCircle.center,
           localDensityScale: expandedCircle.radius,
           sourceId: expandedCircle.id,
-          getCircleId: makeCircleId,
         }))
       }
 
@@ -90,11 +85,13 @@ export async function subCircleSearch({
 
     coveredCircles.push(saturatedCircle);
 
-    uncoveredCircles.push(...generateSubCircles({
+    uncoveredCircles.push(...tesselateFrom({
+      makeCircleId,
+      globalPlacesMap,
+      saturationLimit,
       barycenter: saturatedCircle.center,
       localDensityScale: saturatedCircle.radius,
       sourceId: saturatedCircle.id,
-      getCircleId: makeCircleId,
     }));
   }
 
