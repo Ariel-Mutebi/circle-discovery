@@ -1,6 +1,6 @@
 # circle-discovery
 
-Efficiently discover all points of interest within a geographic circle, bypassing result limits in nearby-search APIs using barycentric fixed-mass search.
+Efficiently discover all points of interest within a geographic circle, bypassing result limits in nearby-search APIs using an adaptive barycentric search.
 
 ## The problem
 
@@ -8,17 +8,30 @@ Many nearby-search APIs return only a limited number of results per query. For a
 
 ## How it works
 
-`circle-discovery` adapts the [Barycentric Fixed-Mass Method](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.88.022922) (Kamer, Ouillon & Sornette, 2013), a technique from multifractal analysis, into an adaptive spatial search. It works by:
+`circle-discovery` is inspired by the [Barycentric Fixed-Mass Method](https://journals.aps.org/pre/abstract/10.1103/PhysRevE.88.022922) (Kamer, Ouillon & Sornette, 2013), a technique from multifractal analysis. Two concepts from that paper are used directly:
 
-1. Querying a circle and finding the barycenter of the results
-2. Stabilizing the barycenter iteratively to locate the true density centre
-3. Computing a **local density scale** — the radius needed to capture approximately the API saturation limit at the local density
-4. Expanding outward with sub-circles sized to that density scale, using a **nonoverlapping coverage** criterion to avoid redundant queries
-5. Repeating until the entire initial circle is covered
+- **Barycentric pivot selection**: rather than centering queries at arbitrary points, each circle is centered on the barycenter (center of mass) of the places found so far, keeping queries anchored to actual density.
+- **Nonoverlapping coverage (NOC)**: a circle is only queried if its center is at least `0.86 × (r₁ + r₂)` from every already-covered circle, producing a tight tiling without redundant sampling. The 0.86 factor comes from the paper's geometric derivation of the minimum overlap needed for complete coverage (~13.4%).
 
-This means the algorithm self-calibrates: dense urban areas get small, tightly-packed sub-circles; sparse areas get large ones. API calls are never wasted on already-covered regions.
+Beyond those two principles, the algorithm departs significantly from the paper to address real-world API constraints the paper was never designed for. The paper operates on a fixed, fully-known point set and is concerned with computing multifractal spectra. This library operates in the opposite regime: the point set is unknown, and the goal is to discover it efficiently under a hard per-query result cap.
 
-Watch the algorithm in action here: [https://circle-revelation.pages.dev/](https://circle-revelation.pages.dev/)
+The adaptations that address this are:
+
+### Interior exploration
+
+When a query returns a saturated result (hitting the API limit), the algorithm locates the tightest saturated circle at the barycenter using binary search — contracting the radius until the smallest circle that still returns a full result is found. This is the **local density scale**: the radius that accurately reflects the local concentration of places.
+
+Throughout this process, globally memoized places are used to avoid redundant API calls. Whenever already-known places within a candidate circle are sufficient to determine saturation, the API call is skipped entirely.
+
+### Frontier exploration
+
+From each resolved density centre, six sub-circles are tessellated hexagonally outward. Directions where the global map already contains a high fraction of known places are pruned before spawning, focusing exploration on genuinely unknown territory.
+
+When a frontier sub-circle comes back unsaturated, the algorithm probes outward in the same direction — moving both center and edge together so the inner boundary stays fixed at the NOC constraint. Expansion stops when saturation is found or the circle center leaves the initial search boundary.
+
+The result is a self-calibrating algorithm: dense areas produce small, tightly-packed circles; sparse areas produce large ones. Approximately 5–6 new places are discovered per API call on average.
+
+Watch the algorithm in action: [https://circle-revelation.pages.dev/](https://circle-revelation.pages.dev/)
 
 ## Installation
 
@@ -29,8 +42,6 @@ npm install @ariel-mutebi/circle-discovery
 ## Usage
 
 The package is agnostic about how you call your places API. You provide a `fetchPlaces` function that takes a circle and returns a promise of places — the algorithm handles the rest.
-
-### Basic example
 
 ```typescript
 import { subCircleSearch } from "@ariel-mutebi/circle-discovery";
@@ -91,25 +102,25 @@ interface Place {
 
 ## Saturation limits
 
-The algorithm assumes that when a query returns `saturationLimit` places, the queried area may still contain undiscovered places and should therefore be subdivided further.
+The algorithm treats a query returning `saturationLimit` results as a signal that the area may contain more undiscovered places and should be explored further.
 
-For example:
-
-* Google Places Nearby Search → `saturationLimit: 20`
+| Provider                      | `saturationLimit` |
+| ----------------------------- | ----------------- |
+| Google Places Nearby Search   | `20`              |
 
 ## Considerations
 
 ### API quota
 
-The algorithm minimises calls through nonoverlapping coverage, but a large radius over a dense area will still generate many queries. Test with a small `initialRadius` first.
+The algorithm minimises calls through NOC constraints, memoized place reuse, and directional pruning — but a large radius over a dense area will still generate many queries. Test with a small `initialRadius` first.
 
 ### Rate limiting
 
-If your `fetchPlaces` function needs to respect rate limits, handle that inside the function itself before returning results.
+Handle rate limiting inside your `fetchPlaces` implementation before returning results.
 
 ### Radius units
 
-`initialRadius` and all internal distance calculations are in metres. Make sure your `fetchPlaces` implementation uses the same unit.
+All internal distance calculations are in metres. Ensure your `fetchPlaces` implementation uses the same unit.
 
 ### Deduplication
 
@@ -121,4 +132,4 @@ This algorithm is inspired by the Barycentric Fixed-Mass Method introduced in:
 
 > Y. Kamer, G. Ouillon, and D. Sornette, *"Barycentric fixed-mass method for multifractal analysis"*, Physical Review E 88, 022922 (2013).
 
-The key concepts adapted from that paper are barycentric pivot selection (centering queries on the true density centre of results) and nonoverlapping coverage (preventing redundant sampling of already-covered areas).
+The paper's original purpose is computing multifractal spectra of a fully-known point distribution. The adaptation here repurposes its two core geometric criteria — barycentric pivot selection and nonoverlapping coverage — for a fundamentally different problem: discovering an unknown point set under a hard per-query result cap.

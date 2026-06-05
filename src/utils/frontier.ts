@@ -22,6 +22,7 @@ export function tesselateFrom({
   globalPlacesMap,
   saturationLimit,
 }: TessellateFromParams): CircleWithID[] {
+  const global = [...globalPlacesMap.values()];
   return [0, 60, 120, 180, 240, 300]
     .map(direction => {
       const center = move(barycenter, localDensityScale * Math.sqrt(3), direction);
@@ -29,7 +30,7 @@ export function tesselateFrom({
         center,
         radius: localDensityScale,
       };
-      const known = [...globalPlacesMap.values()].filter(generateIsWithinCircle(candidate)).length;
+      const known = global.filter(generateIsWithinCircle(candidate)).length;
       return { center, known };
     })
     .filter(({ known }) => known < saturationLimit * MAX_KNOWN_FRACTION)
